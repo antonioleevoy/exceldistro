@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributor-Client CSV Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>CSV Splitter Tool</h1>
+    </header>
+    <div class="container">
+        <h2>Upload an Excel File</h2>
+        <form id="upload-form" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".xlsx, .xls" required>
+            <input type="submit" id="upload-button" value="Upload">
+        </form>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div id="message"></div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            var dots = 0;
+            var interval;
+
+            function startDots() {
+                interval = setInterval(function() {
+                    dots = (dots + 1) % 4;
+                    $('#dots').text('.'.repeat(dots));
+                }, 500);
+            }
+
+            function stopDots() {
+                clearInterval(interval);
+            }
+
+            $('#upload-form').on('submit', function(event){
+                event.preventDefault();
+                var formData = new FormData(this);
+                $('#upload-button').val('Processing...').prop('disabled', true);
+                $('#message').html('');
+
+                $.ajax({
+                    type: 'POST',
+                    url: '/upload',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        if(response.error) {
+                            $('#message').html('<p style="color: red;">' + response.error + '</p>');
+                            $('#upload-button').val('Upload').prop('disabled', false);
+                        } else {
+                            $('#message').html('<p style="color: green;">File processing started... Please wait<span id="dots"></span></p>');
+                            updateProgress();
+                            startDots();
+                        }
+                    },
+                    error: function() {
+                        $('#message').html('<p style="color: red;">An error occurred while uploading the file.</p>');
+                        $('#upload-button').val('Upload').prop('disabled', false);
+                    }
+                });
+
+                function updateProgress() {
+                    $.get('/progress', function(data) {
+                        var progress = data.progress;
+                        $('#progress-bar').css('width', progress + '%').text(progress + '%');
+                        if (progress < 100) {
+                            setTimeout(updateProgress, 500);
+                        } else {
+                            stopDots();
+                            $('#message').html('<p style="color: green;">Success! <a href="/download/clients_csv.zip">Download ZIP</a></p>');
+                            $('#upload-button').val('Upload').prop('disabled', false);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
