@@ -4,7 +4,10 @@
     {
       "src": "app.py",
       "use": "@vercel/python",
-      "config": { "pythonVersion": "3.10" }
+      "config": { 
+        "pythonVersion": "3.10", 
+        "maxDuration": 300
+      }
     }
   ],
   "routes": [
