@@ -2,7 +2,8 @@ from flask import Flask, request, send_file, render_template, jsonify
 import pandas as pd
 import os
 from zipfile import ZipFile
-import io
+import tempfile
+import shutil
 
 app = Flask(__name__)
 
@@ -42,25 +43,22 @@ def handle_file_upload():
         # Select columns B to J (assuming 0-indexed, columns 1 to 9)
         df = df.iloc[:, 1:10]
 
-        # Split the DataFrame by 'Client' column and save CSVs to an in-memory ZIP file
-        clients = df['Client'].unique()
-        zip_buffer = io.BytesIO()
+        # Create a temporary directory to store CSV files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            clients = df['Client'].unique()
 
-        with ZipFile(zip_buffer, 'a') as zip_file:
             for client in clients:
                 client_df = df[df['Client'] == client]
                 print(f"Processing client: {client} with {len(client_df)} rows")  # Debug print
-                csv_buffer = io.StringIO()
-                client_df.to_csv(csv_buffer, index=False)
-                csv_buffer.seek(0)
-                zip_file.writestr(f'{prefix}{client}.csv', csv_buffer.getvalue())
+                client_csv_path = os.path.join(temp_dir, f'{prefix}{client}.csv')
+                client_df.to_csv(client_csv_path, index=False)
 
-        zip_buffer.seek(0)
+            # Create a ZIP file of the temporary directory
+            zip_filename = f'{file_base_name}_clients_csv.zip'
+            shutil.make_archive(file_base_name, 'zip', temp_dir)
 
-        # Save the ZIP file temporarily with a name based on the uploaded file
-        zip_filename = f'{file_base_name}_clients_csv.zip'
-        with open(zip_filename, 'wb') as f:
-            f.write(zip_buffer.read())
+            # Move the created ZIP file to the current working directory
+            shutil.move(f'{file_base_name}.zip', zip_filename)
 
         return jsonify({'filename': zip_filename})
     except Exception as e:
